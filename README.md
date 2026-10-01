@@ -8,6 +8,12 @@
   Toggle your laptop battery charge limit from the Omarchy bar.
 </p>
 
+<p align="center">
+  <img src="preview.png" width="380" alt="Charge Limit panel: Protected state, battery level bar, 24h history chart, and toggle/edit actions">
+  <br>
+  <sub>Representative panel. Charging segments in green, saved limit as the dashed reference line.</sub>
+</p>
+
 ## Features
 
 - Battery widget in the bar that reflects the current charge-limit state.
