@@ -36,6 +36,8 @@ flowchart LR
 
 Reads (status, history) need no privileges: the panel reads sysfs and UPower directly. Only writes (toggle, set, on/off) go through `sudo -n`, scoped by a sudoers rule to just the `charge-limit` subcommands.
 
+The passwordless `sudo` rule targets only the root-owned `/usr/local/bin/charge-limit` with a fixed set of subcommands (`toggle`, `full`, `on`, `off`, and `set NN NN`); it grants no shell, no wildcards, and no other binary. The installer and uninstaller only touch files they own: each installed file carries a `# Managed by omarchy-charge-limit` marker, every target is checked before writing or removing, and a foreign or hand-edited file at any target aborts the install (or is left in place on uninstall) instead of being overwritten.
+
 ## Requirements
 
 - A laptop whose kernel exposes `charge_control_start_threshold` and `charge_control_end_threshold` under `/sys/class/power_supply/BAT0` (ThinkPads and many others).
@@ -95,8 +97,11 @@ omarchy plugin remove io.github.mnsosa.charge-limit --yes
 ./system/uninstall.sh
 ```
 
-`uninstall.sh` releases the limit to 0/100, then disables and removes the
-service, the CLI, the sudoers rule, and `/etc/charge-limit.conf`.
+`uninstall.sh` releases the limit to 0/100, then removes only the files this
+installer owns (CLI, service, sudoers rule, and `/etc/charge-limit.conf`). A
+file at any of those paths that this installer did not write, or that was
+hand-edited, is left in place and reported, so removal never destroys unrelated
+system configuration.
 
 ## Development
 

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.mnsosa.charge-limit",
   "name": "Charge Limit",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "author": "Matías Sosa",
   "license": "MIT",
   "description": "Toggle the battery charge limit from the bar: full charge before leaving, limited at home.",

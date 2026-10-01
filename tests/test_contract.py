@@ -87,6 +87,30 @@ class PluginContractTest(unittest.TestCase):
         self.assertIn("suspend.target", unit)
         self.assertIn("hibernate.target", unit)
 
+    def test_installed_files_carry_ownership_marker(self):
+        marker = "# Managed by omarchy-charge-limit"
+        for rel in (
+            "system/charge-limit",
+            "system/charge-limit.service",
+            "system/charge-limit.sudoers.in",
+        ):
+            head = "\n".join((ROOT / rel).read_text().splitlines()[:3])
+            self.assertIn(marker, head, f"{rel} must carry the ownership marker")
+
+    def test_install_refuses_foreign_files(self):
+        install = (ROOT / "system" / "install.sh").read_text()
+
+        self.assertIn("owned_by_us", install)
+        self.assertIn("refusing to overwrite", install)
+        self.assertIn("install_atomic", install)
+
+    def test_uninstall_only_removes_owned_files(self):
+        uninstall = (ROOT / "system" / "uninstall.sh").read_text()
+
+        self.assertIn("owned_by_us", uninstall)
+        self.assertIn("Left in place", uninstall)
+        self.assertIn("config_is_ours", uninstall)
+
 
 if __name__ == "__main__":
     unittest.main()

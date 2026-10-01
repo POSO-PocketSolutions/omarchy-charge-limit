@@ -1,3 +1,4 @@
+# Managed by omarchy-charge-limit
 [Unit]
 Description=Apply saved battery charge limit (charge-limit)
 After=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

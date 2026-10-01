@@ -1,4 +1,5 @@
 #!/bin/bash
+# Managed by omarchy-charge-limit
 set -euo pipefail
 
 config_file="${CHARGE_LIMIT_CONFIG:-/etc/charge-limit.conf}"
