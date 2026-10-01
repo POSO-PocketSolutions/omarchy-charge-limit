@@ -86,19 +86,16 @@ sudo charge-limit toggle      # switch full <-> saved limit
 
 ```bash
 omarchy plugin remove io.github.mnsosa.charge-limit --yes
-sudo rm -f /usr/local/bin/charge-limit \
-           /etc/systemd/system/charge-limit.service \
-           /etc/sudoers.d/charge-limit \
-           /etc/charge-limit.conf
-sudo systemctl daemon-reload
+./system/uninstall.sh
 ```
 
-Removing the limit from sysfs (back to 0/100) happens on the next reboot once the service is gone, or immediately with `sudo charge-limit off` before uninstalling.
+`uninstall.sh` releases the limit to 0/100, then disables and removes the
+service, the CLI, the sudoers rule, and `/etc/charge-limit.conf`.
 
 ## Development
 
 ```bash
-bash tests/history_test.sh
+python -m unittest discover -s tests -v
 omarchy plugin validate .
 ```
 

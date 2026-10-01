@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-config_file="/etc/charge-limit.conf"
+config_file="${CHARGE_LIMIT_CONFIG:-/etc/charge-limit.conf}"
 bat_path="${CHARGE_LIMIT_BAT_PATH:-/sys/class/power_supply/BAT0}"
 start_file="$bat_path/charge_control_start_threshold"
 end_file="$bat_path/charge_control_end_threshold"
