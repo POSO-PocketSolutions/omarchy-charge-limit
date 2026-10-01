@@ -1,0 +1,21 @@
+#!/bin/bash
+set -euo pipefail
+
+action=${1:-toggle}
+case "$action" in
+  toggle|full|on|off)
+    [[ $# -eq 1 ]] || { echo "charge-limit-action: '$action' takes no arguments" >&2; exit 2; }
+    exec sudo -n /usr/local/bin/charge-limit "$action"
+    ;;
+  set)
+    [[ $# -eq 3 ]] || { echo "charge-limit-action: set needs <start> <end>" >&2; exit 2; }
+    start=$2
+    end=$3
+    [[ $start =~ ^[0-9]+$ && $end =~ ^[0-9]+$ ]] || { echo "charge-limit-action: start/end must be integers" >&2; exit 2; }
+    exec sudo -n /usr/local/bin/charge-limit set "$start" "$end"
+    ;;
+  *)
+    echo "charge-limit-action: invalid action '$action'" >&2
+    exit 2
+    ;;
+esac

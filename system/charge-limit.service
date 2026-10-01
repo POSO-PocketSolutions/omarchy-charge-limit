@@ -1,0 +1,11 @@
+[Unit]
+Description=Apply saved battery charge limit (charge-limit)
+After=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+ConditionPathExists=/etc/charge-limit.conf
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/charge-limit boot
+
+[Install]
+WantedBy=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

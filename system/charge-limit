@@ -1,0 +1,160 @@
+#!/bin/bash
+set -euo pipefail
+
+config_file="/etc/charge-limit.conf"
+bat_path="${CHARGE_LIMIT_BAT_PATH:-/sys/class/power_supply/BAT0}"
+start_file="$bat_path/charge_control_start_threshold"
+end_file="$bat_path/charge_control_end_threshold"
+
+default_start=75
+default_end=80
+
+die() {
+  echo "charge-limit: $1" >&2
+  exit 1
+}
+
+require_sysfs() {
+  [[ -w $end_file ]] || die "cannot write $end_file (run with sudo, and check the battery supports charge thresholds)"
+}
+
+read_config() {
+  cfg_start=$default_start
+  cfg_end=$default_end
+  cfg_enabled=1
+  if [[ -r $config_file ]]; then
+    # shellcheck disable=SC1090
+    source "$config_file"
+    cfg_start=${START:-$default_start}
+    cfg_end=${END:-$default_end}
+    cfg_enabled=${ENABLED:-1}
+  fi
+}
+
+write_config() {
+  cat >"$config_file" <<EOF
+START=$1
+END=$2
+ENABLED=$3
+EOF
+}
+
+apply_thresholds() {
+  local start=$1 end=$2
+  require_sysfs
+  # End must be written in an order the EC accepts; set start low first.
+  printf '%s\n' "$start" >"$start_file" 2>/dev/null || true
+  printf '%s\n' "$end" >"$end_file"
+  printf '%s\n' "$start" >"$start_file" 2>/dev/null || true
+}
+
+validate_pair() {
+  local start=$1 end=$2
+  [[ $start =~ ^[0-9]+$ && $end =~ ^[0-9]+$ ]] || die "start/end must be integers"
+  (( start >= 0 && start <= 100 )) || die "start out of range 0-100"
+  (( end >= 1 && end <= 100 )) || die "end out of range 1-100"
+  (( end > start )) || die "end ($end) must be greater than start ($start)"
+}
+
+cmd_status() {
+  local s e
+  s=$(cat "$start_file" 2>/dev/null || echo "?")
+  e=$(cat "$end_file" 2>/dev/null || echo "?")
+  read_config
+  echo "live:   start=$s end=$e"
+  if [[ -r $config_file ]]; then
+    echo "saved:  start=$cfg_start end=$cfg_end enabled=$cfg_enabled"
+  else
+    echo "saved:  (none; defaults ${default_start}/${default_end})"
+  fi
+}
+
+cmd_set() {
+  local start=$1 end=$2
+  validate_pair "$start" "$end"
+  apply_thresholds "$start" "$end"
+  write_config "$start" "$end" 1
+  echo "charge limit set to ${start}/${end} and saved (persists across reboots)"
+}
+
+cmd_full() {
+  apply_thresholds 0 100
+  echo "charging to 100% now (temporary; saved limit unchanged)"
+  if [[ -r $config_file ]]; then
+    read_config
+    (( cfg_enabled == 1 )) && echo "run 'charge-limit on' or reboot to restore ${cfg_start}/${cfg_end}"
+  fi
+}
+
+cmd_on() {
+  read_config
+  validate_pair "$cfg_start" "$cfg_end"
+  apply_thresholds "$cfg_start" "$cfg_end"
+  write_config "$cfg_start" "$cfg_end" 1
+  echo "charge limit re-applied: ${cfg_start}/${cfg_end}"
+}
+
+cmd_off() {
+  apply_thresholds 0 100
+  read_config
+  write_config "$cfg_start" "$cfg_end" 0
+  echo "charge limit disabled (0/100); saved values kept but will not auto-apply"
+}
+
+cmd_toggle() {
+  local e
+  e=$(cat "$end_file" 2>/dev/null || echo 100)
+  if [[ $e == 100 ]]; then
+    cmd_on
+  else
+    cmd_full
+  fi
+}
+
+cmd_boot() {
+  read_config
+  if (( cfg_enabled != 1 )); then
+    echo "charge limit disabled; nothing to apply"
+    return 0
+  fi
+  validate_pair "$cfg_start" "$cfg_end"
+  apply_thresholds "$cfg_start" "$cfg_end"
+  echo "charge limit applied on boot/resume: ${cfg_start}/${cfg_end}"
+}
+
+usage() {
+  cat <<EOF
+Usage: charge-limit <command>
+
+  status            show live and saved thresholds
+  set <start> <end> set and persist a limit (e.g. set 75 80)
+  full              remove limit now to charge to 100% (temporary)
+  toggle            switch between full charge (0/100) and the saved limit
+  on                re-apply the saved limit now
+  off               disable the limit (0/100) and stop auto-applying
+
+The saved limit is re-applied on every boot by charge-limit.service,
+because the ThinkPad EC resets thresholds to 0/100 when power is cut.
+EOF
+}
+
+main() {
+  local cmd=${1:-status}
+  shift || true
+  case "$cmd" in
+    status) cmd_status ;;
+    set)
+      [[ $# -eq 2 ]] || die "set needs <start> <end>"
+      cmd_set "$1" "$2"
+      ;;
+    full) cmd_full ;;
+    toggle) cmd_toggle ;;
+    on) cmd_on ;;
+    off) cmd_off ;;
+    boot) cmd_boot ;;
+    -h|--help|help) usage ;;
+    *) usage; exit 2 ;;
+  esac
+}
+
+main "$@"

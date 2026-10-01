@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.mnsosa.charge-limit",
+  "name": "Charge Limit",
+  "version": "0.1.0",
+  "author": "Matías Sosa",
+  "license": "MIT",
+  "description": "Toggle the battery charge limit from the bar: full charge before leaving, limited at home.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Charge Limit",
+    "description": "Shows charge-limit state in the bar and opens a panel to toggle between the saved limit and full charge.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "refreshIntervalSec": 30,
+      "limitedColor": "#3fb950",
+      "fullColor": "#d29922"
+    },
+    "schema": [
+      {
+        "key": "refreshIntervalSec",
+        "type": "integer",
+        "label": "Refresh interval (seconds)",
+        "min": 5,
+        "max": 600,
+        "step": 5,
+        "defaultValue": 30
+      },
+      {
+        "key": "limitedColor",
+        "type": "string",
+        "label": "Limited (protected) color",
+        "defaultValue": "#3fb950"
+      },
+      {
+        "key": "fullColor",
+        "type": "string",
+        "label": "Full-charge color",
+        "defaultValue": "#d29922"
+      }
+    ]
+  }
+}

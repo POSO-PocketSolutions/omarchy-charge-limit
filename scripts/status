@@ -1,0 +1,59 @@
+#!/bin/bash
+set -euo pipefail
+
+bat_path="${CHARGE_LIMIT_BAT_PATH:-/sys/class/power_supply/BAT0}"
+config_file="${CHARGE_LIMIT_CONFIG:-/etc/charge-limit.conf}"
+start_file="$bat_path/charge_control_start_threshold"
+end_file="$bat_path/charge_control_end_threshold"
+
+json_escape() {
+  local s=$1
+  s=${s//\\/\\\\}
+  s=${s//\"/\\\"}
+  printf '%s' "$s"
+}
+
+supported=true
+[[ -r $end_file ]] || supported=false
+
+live_start=$(cat "$start_file" 2>/dev/null || echo "")
+live_end=$(cat "$end_file" 2>/dev/null || echo "")
+percentage=$(cat "$bat_path/capacity" 2>/dev/null || echo "")
+bat_state=$(cat "$bat_path/status" 2>/dev/null || echo "")
+
+cfg_start=75
+cfg_end=80
+cfg_enabled=1
+have_config=false
+if [[ -r $config_file ]]; then
+  have_config=true
+  # shellcheck disable=SC1090
+  source "$config_file" 2>/dev/null || true
+  cfg_start=${START:-75}
+  cfg_end=${END:-80}
+  cfg_enabled=${ENABLED:-1}
+fi
+
+mode="unknown"
+if [[ -n $live_end ]]; then
+  if [[ $live_end == 100 && ( -z $live_start || $live_start == 0 ) ]]; then
+    mode="full"
+  else
+    mode="limited"
+  fi
+fi
+
+cat <<EOF
+{
+  "supported": $supported,
+  "mode": "$mode",
+  "liveStart": "$(json_escape "$live_start")",
+  "liveEnd": "$(json_escape "$live_end")",
+  "percentage": "$(json_escape "$percentage")",
+  "batteryState": "$(json_escape "$bat_state")",
+  "haveConfig": $have_config,
+  "savedStart": "$(json_escape "$cfg_start")",
+  "savedEnd": "$(json_escape "$cfg_end")",
+  "enabled": $([[ ${cfg_enabled} == 1 ]] && echo true || echo false)
+}
+EOF

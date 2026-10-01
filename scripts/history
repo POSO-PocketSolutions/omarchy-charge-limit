@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euo pipefail
+
+hours=24
+span=$((hours * 3600))
+resolution=300
+device_path="${CHARGE_HISTORY_DEVICE_PATH:-/org/freedesktop/UPower/devices/battery_BAT0}"
+
+failure_json() {
+  jq -nc --arg error "$1" --argjson hours "$hours" '{available: false, hours: $hours, windowStart: 0, windowEnd: 0, points: [], error: $error}'
+}
+
+if ! raw=$(busctl --json=short call org.freedesktop.UPower "$device_path" org.freedesktop.UPower.Device GetHistory suu charge "$span" "$resolution" 2>/dev/null); then
+  failure_json "UPower history is unavailable"
+  exit 0
+fi
+
+now=$(date +%s)
+if ! jq -c --argjson now "$now" --argjson hours "$hours" '
+  def state_name:
+    if . == 1 then "charging"
+    elif . == 2 then "discharging"
+    elif . == 3 then "empty"
+    elif . == 4 then "full"
+    elif . == 5 then "pending-charge"
+    elif . == 6 then "pending-discharge"
+    else "unknown"
+    end;
+  [(.data[0] // [])[] |
+    select((.[0] | type) == "number" and (.[1] | type) == "number") |
+    {
+      timestamp: .[0],
+      level: ((.[1] * 10 | round) / 10),
+      state: (.[2] | state_name)
+    }
+  ] | sort_by(.timestamp) as $points |
+  {
+    available: true,
+    hours: $hours,
+    windowStart: ($now - ($hours * 3600)),
+    windowEnd: $now,
+    points: $points,
+    sampleCount: ($points | length),
+    error: ""
+  }
+' <<< "$raw"; then
+  failure_json "UPower returned invalid history data"
+fi
